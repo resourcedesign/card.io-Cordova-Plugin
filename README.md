@@ -1,3 +1,5 @@
+This fork uses Peach Payments SDK to handle credit cards
+
 card.io plug-in for Cordova
 ---------------------------
 
