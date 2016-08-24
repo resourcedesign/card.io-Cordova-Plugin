@@ -7,12 +7,12 @@
 
 #import "CardIOCordovaPlugin.h"
 #import <mobile.connect/mobile.connect.h>
-@property (strong, nonatomic) PWPaymentProvider *provider;
+
 
 #pragma mark -
 
 @interface CardIOCordovaPlugin ()
-
+@property (strong, nonatomic) PWPaymentProvider *provider;
 @property (nonatomic, copy, readwrite) NSString *scanCallbackId;
 
 - (void)sendSuccessTo:(NSString *)callbackId withObject:(id)objwithObject;
@@ -33,7 +33,7 @@
     self.scanCallbackId = command.callbackId;
     NSDictionary* options = [command.arguments objectAtIndex:0];
     self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"token"]];
-
+    
     NSNumber *noCamera = [options objectForKey:@"noCamera"];
     BOOL isScanningEnabled = (noCamera != nil) ? ![noCamera boolValue] : true;
 
@@ -106,7 +106,6 @@
     if (scanInstructions) {
         paymentViewController.scanInstructions = scanInstructions;
     }
-
     [self.viewController presentViewController:paymentViewController animated:YES completion:nil];
 
 }
@@ -130,60 +129,63 @@
 #pragma mark - CardIOPaymentViewControllerDelegate methods
 
 - (void)userDidProvideCreditCardInfo:(CardIOCreditCardInfo *)info inPaymentViewController:(CardIOPaymentViewController *)pvc {
-
     [pvc dismissViewControllerAnimated:YES completion:^{
-      // Convert CardIOCreditCardInfo into dictionary for passing back to javascript
-      NSMutableDictionary *response = [NSMutableDictionary dictionaryWithObjectsAndKeys:
-                                       info.cardNumber, @"cardNumber",
-                                       info.redactedCardNumber, @"redactedCardNumber",
-                                       [CardIOCreditCardInfo displayStringForCardType:info.cardType
-                                                                usingLanguageOrLocale:pvc.languageOrLocale],
-                                       @"cardType",
-                                       nil];
-      if(info.expiryMonth > 0 && info.expiryYear > 0) {
-        [response setObject:[NSNumber numberWithUnsignedInteger:info.expiryMonth] forKey:@"expiryMonth"];
-        [response setObject:[NSNumber numberWithUnsignedInteger:info.expiryYear] forKey:@"expiryYear"];
-      }
-      if(info.cvv.length > 0) {
-        [response setObject:info.cvv forKey:@"cvv"];
-      }
-      if(info.postalCode.length > 0) {
-        [response setObject:info.postalCode forKey:@"postalCode"];
-      }
-      if(info.cardholderName.length > 0) {
-        [response setObject:info.cardholderName forKey:@"cardholderName"];
-      }
-      PWPaymentParamsFactory *paramFactory = provider.paymentParamsFactory;
-      NSError *error;
-      PWPaymentParams *ccParams = [paramFactory createCreditCardTokenizationParamsWithNumber:info.cardNumber 
-                                            name:info.cardholderName
-                                      expiryYear:info.expiryYear 
-                                     expiryMonth:info.expiryMonth 
-                                             CVV:info.cvv 
-                                           error:&error];
+        [self.commandDelegate runInBackground:^{
+          // Convert CardIOCreditCardInfo into dictionary for passing back to javascript
+          NSMutableDictionary *response = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+    //                                       info.cardNumber, @"cardNumber",
+                                           info.redactedCardNumber, @"redactedCardNumber",
+                                           [CardIOCreditCardInfo displayStringForCardType:info.cardType
+                                                                    usingLanguageOrLocale:pvc.languageOrLocale],
+                                           @"cardType",
+                                           nil];
+          if(info.expiryMonth > 0 && info.expiryYear > 0) {
+            [response setObject:[NSNumber numberWithUnsignedInteger:info.expiryMonth] forKey:@"expiryMonth"];
+            [response setObject:[NSNumber numberWithUnsignedInteger:info.expiryYear] forKey:@"expiryYear"];
+          }
+          if(info.cvv.length > 0) {
+    //        [response setObject:info.cvv forKey:@"cvv"];
+          }
+          if(info.postalCode.length > 0) {
+            [response setObject:info.postalCode forKey:@"postalCode"];
+          }
+          if(info.cardholderName.length > 0) {
+            [response setObject:info.cardholderName forKey:@"cardholderName"];
+          }
+          PWPaymentParamsFactory *paramFactory = self.provider.paymentParamsFactory;
+          NSError *error;
+          PWPaymentParams *ccParams = [paramFactory createCreditCardTokenizationParamsWithNumber:info.cardNumber 
+                                                name:info.cardholderName
+                                          expiryYear:[NSString stringWithFormat:@"%lu", (unsigned long)info.expiryYear]
+                                         expiryMonth:[NSString stringWithFormat:@"%lu", (unsigned long)info.expiryMonth]
+                                                 CVV:info.cvv 
+                                               error:&error];
 
-		if(ccParams == nil) {
-		    // Something went wrong! To find out what,
-		    // look at [error description] message
-		    NSLog(@"%@", [error description]);
-		} else {
-			[provider createAndRegisterObtainTokenTransactionWithParams:ccParams 
-			    onSuccess:^(PWTransaction *transaction) {
-			        // obtain token
-			        [provider obtainToken:transaction 
-			            onSuccess:^(NSString *token, PWTransaction *transaction) {
-			               [self sendSuccessTo:self.scanCallbackId withObject:response];
-			            }
-			            onFailure:^(PWTransaction *transaction, NSError *error) {
-			               [self sendSuccessTo:self.scanCallbackId withObject:response];
-			            }
-			        ];
-			    } onFailure:^(PWTransaction *transaction, NSError *error) {
-			        [self sendSuccessTo:self.scanCallbackId withObject:response];
-			    }
-			];
+            if(ccParams == nil) {
+                // Something went wrong! To find out what,
+                // look at [error description] message
+                NSLog(@"Error Creating paramFactory: %@", [error description]);
+            } else {
+                [self.provider createAndRegisterObtainTokenTransactionWithParams:ccParams
+                    onSuccess:^(PWTransaction *transaction) {
+                        [self.provider obtainToken:transaction
+                            onSuccess:^(NSString *token, PWTransaction *transaction) {
+                               [response setObject:token forKey:@"cardToken"];
+                               [self sendSuccessTo:self.scanCallbackId withObject:response];
+                            }
+                            onFailure:^(PWTransaction *transaction, NSError *error) {
+                                NSLog(@"Error obtaining token: %@", [error description]);
+                               [self sendFailureTo:self.scanCallbackId];
+                            }
+                        ];
+                    } onFailure:^(PWTransaction *transaction, NSError *error) {
+                        NSLog(@"Error creating and registering card: %@", [error description]);
+                        [self sendFailureTo:self.scanCallbackId];
+                    }
+                ];
 
-		}
+            }
+        }];
     }];
 }
 
