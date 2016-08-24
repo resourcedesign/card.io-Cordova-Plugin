@@ -6,6 +6,8 @@
 //
 
 #import "CardIOCordovaPlugin.h"
+#import <mobile.connect/mobile.connect.h>
+@property (strong, nonatomic) PWPaymentProvider *provider;
 
 #pragma mark -
 
@@ -30,6 +32,7 @@
 - (void)scan:(CDVInvokedUrlCommand *)command {
     self.scanCallbackId = command.callbackId;
     NSDictionary* options = [command.arguments objectAtIndex:0];
+    self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"token"]];
 
     NSNumber *noCamera = [options objectForKey:@"noCamera"];
     BOOL isScanningEnabled = (noCamera != nil) ? ![noCamera boolValue] : true;
@@ -150,8 +153,37 @@
       if(info.cardholderName.length > 0) {
         [response setObject:info.cardholderName forKey:@"cardholderName"];
       }
+      PWPaymentParamsFactory *paramFactory = provider.paymentParamsFactory;
+      NSError *error;
+      PWPaymentParams *ccParams = [paramFactory createCreditCardTokenizationParamsWithNumber:info.cardNumber 
+                                            name:info.cardholderName
+                                      expiryYear:info.expiryYear 
+                                     expiryMonth:info.expiryMonth 
+                                             CVV:info.cvv 
+                                           error:&error];
 
-      [self sendSuccessTo:self.scanCallbackId withObject:response];
+		if(ccParams == nil) {
+		    // Something went wrong! To find out what,
+		    // look at [error description] message
+		    NSLog(@"%@", [error description]);
+		} else {
+			[provider createAndRegisterObtainTokenTransactionWithParams:ccParams 
+			    onSuccess:^(PWTransaction *transaction) {
+			        // obtain token
+			        [provider obtainToken:transaction 
+			            onSuccess:^(NSString *token, PWTransaction *transaction) {
+			               [self sendSuccessTo:self.scanCallbackId withObject:response];
+			            }
+			            onFailure:^(PWTransaction *transaction, NSError *error) {
+			               [self sendSuccessTo:self.scanCallbackId withObject:response];
+			            }
+			        ];
+			    } onFailure:^(PWTransaction *transaction, NSError *error) {
+			        [self sendSuccessTo:self.scanCallbackId withObject:response];
+			    }
+			];
+
+		}
     }];
 }
 
