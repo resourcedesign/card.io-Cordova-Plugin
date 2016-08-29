@@ -12,8 +12,8 @@
 #pragma mark -
 
 @interface CardIOCordovaPlugin ()
-@property (strong, nonatomic) PWPaymentProvider *provider;
 @property (nonatomic, copy, readwrite) NSString *scanCallbackId;
+@property (strong, nonatomic) PWPaymentProvider *provider;
 
 - (void)sendSuccessTo:(NSString *)callbackId withObject:(id)objwithObject;
 - (void)sendFailureTo:(NSString *)callbackId;
@@ -32,7 +32,7 @@
 - (void)scan:(CDVInvokedUrlCommand *)command {
     self.scanCallbackId = command.callbackId;
     NSDictionary* options = [command.arguments objectAtIndex:0];
-    self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"token"]];
+    self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"appToken"]];
     
     NSNumber *noCamera = [options objectForKey:@"noCamera"];
     BOOL isScanningEnabled = (noCamera != nil) ? ![noCamera boolValue] : true;
@@ -125,12 +125,19 @@
     }
 }
 - (void)chargeToken:(CDVInvokedUrlCommand *)command {
+    NSDictionary* options = [command.arguments objectAtIndex:0];
+    self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"appToken"]];
+    
 	NSError *error;
-	PWPaymentParams *tokenParams = [provider.paymentParamsFactory 
-	    createTokenPaymentParamsWithAmount:amount 
-	                              currency:EUR 
-	                               subject:@"Charge test" 
-	                                 token:token
+    double paymentAmount = [[options objectForKey:@"amount"] doubleValue];
+    NSString *cardToken = [options objectForKey:@"cardToken"];
+    NSString *currency = [options objectForKey:@"currency"];
+    NSString *subject = [options objectForKey:@"subject"];
+    PWPaymentParamsFactory *paramFactory = self.provider.paymentParamsFactory;
+	PWPaymentParams *tokenParams = [paramFactory createTokenPaymentParamsWithAmount:paymentAmount
+	                              currency:currency
+	                               subject:subject
+	                                 token:cardToken
 	                                 error:&error];
 			
 	if(tokenParams == nil) {
@@ -139,11 +146,11 @@
 	    NSLog(@"%@", [error description]);
 	    [self sendFailureTo:command.callbackId];
 	} else {
-	   [provider createAndRegisterDebitTransactionWithParams:tokenParams 
+	   [self.provider createAndRegisterDebitTransactionWithParams:tokenParams
 		    onSuccess:^(PWTransaction *transaction) {
-		        [provider debitTransaction:transaction
+		        [self.provider debitTransaction:transaction
 		            onSuccess:^(PWTransaction *transaction) {
-		                [self sendSuccessTo:command.callbackId withObject:TRUE];
+		                [self sendSuccessTo:command.callbackId withObject:@"success"];
 		            } onFailure:^(PWTransaction *transaction, NSError *error) {
 		                 NSLog(@"%@", [error description]);
 		                [self sendFailureTo:command.callbackId];
