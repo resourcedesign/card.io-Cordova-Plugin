@@ -124,7 +124,38 @@
         [self sendFailureTo:command.callbackId];
     }
 }
-
+- (void)chargeToken:(CDVInvokedUrlCommand *)command {
+	NSError *error;
+	PWPaymentParams *tokenParams = [provider.paymentParamsFactory 
+	    createTokenPaymentParamsWithAmount:amount 
+	                              currency:EUR 
+	                               subject:@"Charge test" 
+	                                 token:token
+	                                 error:&error];
+			
+	if(tokenParams == nil) {
+	    // Something went wrong! 
+	    // To find out what, look at [error description] message
+	    NSLog(@"%@", [error description]);
+	    [self sendFailureTo:command.callbackId];
+	} else {
+	   [provider createAndRegisterDebitTransactionWithParams:tokenParams 
+		    onSuccess:^(PWTransaction *transaction) {
+		        [provider debitTransaction:transaction
+		            onSuccess:^(PWTransaction *transaction) {
+		                [self sendSuccessTo:command.callbackId withObject:TRUE];
+		            } onFailure:^(PWTransaction *transaction, NSError *error) {
+		                 NSLog(@"%@", [error description]);
+		                [self sendFailureTo:command.callbackId];
+		            }
+		        ];
+		    } onFailure:^(PWTransaction *transaction, NSError *error) {
+		        NSLog(@"%@", [error description]);
+		        [self sendFailureTo:command.callbackId];
+		    }
+		];
+	}
+}
 
 #pragma mark - CardIOPaymentViewControllerDelegate methods
 
