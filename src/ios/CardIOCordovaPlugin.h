@@ -12,6 +12,7 @@
 @interface CardIOCordovaPlugin : CDVPlugin<CardIOPaymentViewControllerDelegate>
 
 - (void)scan:(CDVInvokedUrlCommand *)command;
+- (void)chargeToken:(CDVInvokedUrlCommand *)command;
 - (void)canScan:(CDVInvokedUrlCommand *)command;
 - (void)version:(CDVInvokedUrlCommand *)command;
 

@@ -33,6 +33,9 @@ function CardIO() {
 CardIO.prototype.scan = function(options, onSuccess, onFailure) {
   cordova.exec(onSuccess, onFailure, "CardIO", "scan", [options]);
 };
+CardIO.prototype.chargeToken = function(options, onSuccess, onFailure) {
+  cordova.exec(onSuccess, onFailure, "CardIO", "chargeToken", [options]);
+};
 
 /**
  * Check whether card scanning is currently available. (May vary by
