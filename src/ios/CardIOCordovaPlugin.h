@@ -14,6 +14,5 @@
 - (void)scan:(CDVInvokedUrlCommand *)command;
 - (void)canScan:(CDVInvokedUrlCommand *)command;
 - (void)version:(CDVInvokedUrlCommand *)command;
-- (void)chargeToken:(CDVInvokedUrlCommand *)command;
 
 @end

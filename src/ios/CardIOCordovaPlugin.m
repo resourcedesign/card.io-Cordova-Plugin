@@ -124,46 +124,6 @@
         [self sendFailureTo:command.callbackId];
     }
 }
-- (void)chargeToken:(CDVInvokedUrlCommand *)command {
-    NSDictionary* options = [command.arguments objectAtIndex:0];
-    self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"appToken"]];
-    
-	NSError *error;
-    double paymentAmount = [[options objectForKey:@"amount"] doubleValue];
-    NSString *cardToken = [options objectForKey:@"cardToken"];
-    NSString *currency = [options objectForKey:@"currency"];
-    NSString *subject = [options objectForKey:@"subject"];
-    PWPaymentParamsFactory *paramFactory = self.provider.paymentParamsFactory;
-	PWPaymentParams *tokenParams = [paramFactory createTokenPaymentParamsWithAmount:paymentAmount
-	                              currency:currency
-	                               subject:subject
-	                                 token:cardToken
-	                                 error:&error];
-			
-	if(tokenParams == nil) {
-	    // Something went wrong! 
-	    // To find out what, look at [error description] message
-	    NSLog(@"%@", [error description]);
-	    [self sendFailureTo:command.callbackId];
-	} else {
-	   [self.provider createAndRegisterDebitTransactionWithParams:tokenParams
-		    onSuccess:^(PWTransaction *transaction) {
-		        [self.provider debitTransaction:transaction
-		            onSuccess:^(PWTransaction *transaction) {
-		                [self sendSuccessTo:command.callbackId withObject:@"success"];
-		            } onFailure:^(PWTransaction *transaction, NSError *error) {
-		                 NSLog(@"%@", [error description]);
-		                [self sendFailureTo:command.callbackId];
-		            }
-		        ];
-		    } onFailure:^(PWTransaction *transaction, NSError *error) {
-		        NSLog(@"%@", [error description]);
-		        [self sendFailureTo:command.callbackId];
-		    }
-		];
-	}
-}
-
 #pragma mark - CardIOPaymentViewControllerDelegate methods
 
 - (void)userDidProvideCreditCardInfo:(CardIOCreditCardInfo *)info inPaymentViewController:(CardIOPaymentViewController *)pvc {
