@@ -33,6 +33,7 @@
     self.scanCallbackId = command.callbackId;
     NSDictionary* options = [command.arguments objectAtIndex:0];
     self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"appToken"]];
+    self.provider.serverType = PWLiveServer;
     
     NSNumber *noCamera = [options objectForKey:@"noCamera"];
     BOOL isScanningEnabled = (noCamera != nil) ? ![noCamera boolValue] : true;
@@ -127,7 +128,7 @@
 - (void)chargeToken:(CDVInvokedUrlCommand *)command {
     NSDictionary* options = [command.arguments objectAtIndex:0];
     self.provider = [PWPaymentProvider getProviderWithApplicationId:[options objectForKey:@"appId"] profileToken:[options objectForKey:@"appToken"]];
-    
+    self.provider.serverType = PWLiveServer;
     NSError *error;
     double paymentAmount = [[options objectForKey:@"amount"] doubleValue];
     NSString *cardToken = [options objectForKey:@"cardToken"];

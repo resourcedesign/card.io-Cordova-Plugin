@@ -72,7 +72,6 @@
         </config-file>
 
         <source-file src="src/android/CardIOCordovaPlugin.java" target-dir="src/io/card/cordova/sdk" />
-        <source-file src="src/android/libs/pebble_kit.jar" target-dir="libs" />
         <source-file src="src/android/libs/mobile.connect-android-1.7.6.jar" target-dir="libs" />
 	    <framework src="src/android/build.gradle" custom="true" type="gradleReference" />
 
