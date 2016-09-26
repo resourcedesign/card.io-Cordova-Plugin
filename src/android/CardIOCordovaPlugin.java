@@ -14,8 +14,15 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.net.Uri;
+import android.os.IBinder;
+
+import com.mobile.connect.PWConnect;
+import com.mobile.connect.exception.PWException;
+import com.mobile.connect.service.PWProviderBinder;
 
 import io.card.payment.CardIOActivity;
 import io.card.payment.CreditCard;
@@ -25,6 +32,39 @@ public class CardIOCordovaPlugin extends CordovaPlugin {
     private CallbackContext callbackContext;
     private Activity activity = null;
     private static final int REQUEST_CARD_SCAN = 10;
+
+    /* 
+     *  Peach payments connectivity.
+     */
+    private PWProviderBinder _binder;
+    private static final String APPLICATIONIDENTIFIER = "8a82941756a2ab6f0156bc3694223c0a";
+    private static final String PROFILETOKEN = "53ae27246b9511e69fdb316df49128d9";
+     
+    private ServiceConnection _serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            _binder = (PWProviderBinder) service;
+            // we have a connection to the service
+            try {
+                _binder.initializeProvider(PWConnect.PWProviderMode.TEST,
+                        APPLICATIONIDENTIFIER, PROFILETOKEN);
+            } catch (PWException ee) {
+                // error initializing the provider
+                ee.printStackTrace();
+            }
+        }
+     
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            _binder = null;
+        }
+    };
+
+    
+
+    /* 
+     *  End peach payments connectivity.
+     */
 
     @Override
     public boolean execute(String action, JSONArray args,

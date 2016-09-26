@@ -73,6 +73,17 @@
             </feature>
         </config-file>
 
+        <config-file target="AndroidManifest.xml" parent="/manifest" after="/supports-screens">
+            <uses-permission android:name="android.permission.INTERNET" />
+        </config-file>
+        <config-file target="AndroidManifest.xml" parent="/manifest/application">
+            <!-- mobile.connect.checkout service -->
+            <service
+                android:name="com.mobile.connect.service.PWConnectService"
+                android:exported="false" >
+            </service>
+        </config-file>
+
         <source-file src="src/android/CardIOCordovaPlugin.java" target-dir="src/io/card/cordova/sdk" />
         <source-file src="src/android/libs/mobile.connect-android-1.7.6.jar" target-dir="libs" />
 	    <framework src="src/android/build.gradle" custom="true" type="gradleReference" />
