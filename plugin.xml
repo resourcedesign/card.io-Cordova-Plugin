@@ -24,7 +24,9 @@
                 <param name="ios-package" value="CardIOCordovaPlugin" onload="false" />
             </feature>
         </config-file>
-
+		<config-file target="*-Info.plist" parent="NSCameraUsageDescription">
+            <string>We need to use your camera to scan your credit card</string>
+        </config-file>
         <!-- Plugin implementation -->
         <header-file src="src/ios/CardIOCordovaPlugin.h" />
         <source-file src="src/ios/CardIOCordovaPlugin.m" />
