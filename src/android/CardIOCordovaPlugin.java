@@ -41,60 +41,30 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
     private Activity activity = null;
     private static final int REQUEST_CARD_SCAN = 10;
 
-    /* 
-     *  Peach payments connectivity - Installation of SDK and setup.
-     */
     private PWProviderBinder _binder;
     private boolean currentTokenization = false;
-    private static final String APPLICATIONIDENTIFIER = "8a82941756a2ab6f0156bc3694223c0a";
-    private static final String PROFILETOKEN = "53ae27246b9511e69fdb316df49128d9";
+    private boolean transactionSuccess = false;
+    private boolean creationAndRegistration = false;
 
-    private JSONObject cardDetails = new JSONObject();
+    // Global variable to store peach payments token for now.
     private String token;
 
-    private ServiceConnection _serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            _binder = (PWProviderBinder) service;
-            // we have a connection to the service
-            try {
-                _binder.initializeProvider(PWConnect.PWProviderMode.TEST,
-                        APPLICATIONIDENTIFIER, PROFILETOKEN);
-            } catch (PWException ee) {
-                // error initializing the provider
-                ee.printStackTrace();
-            }
-        }
-     
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            _binder = null;
-        }
-    };
-
     /* 
-     *  End peach payments connectivity.
      *  Start of chargeToken to obtain peach payments token.
      */
 
-    private void chargeToken(final CordovaArgs args, final CallbackContext callbackContext) {
+    private void chargeToken(final JSONArray args, final CallbackContext callbackContext) throws JSONException {
         PWPaymentParams paymentParams = null;
-        String cardholderName = null, cardNumber = null, expiryYear = null, expiryMonth = null, cvv = null;
-        PWCreditCardType cardType = null;
-        try{
-            cardholderName = cardDetails.getString("cardholderName");
-            cardType = (PWCreditCardType)cardDetails.get("cardType");
-            cardNumber = cardDetails.getString("cardNumber");
-            expiryYear = cardDetails.getString("expiryYear");
-            expiryMonth = cardDetails.getString("expiryMonth");
-            cvv = cardDetails.getString("cvv");
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        JSONObject cardDetails = args.getJSONObject(0);
         try {
             paymentParams = _binder
                     .getPaymentParamsFactory()
-                    .createCreditCardTokenizationParams(cardholderName, cardType, cardNumber,  expiryYear,  expiryMonth, cvv);
+                    .createCreditCardTokenizationParams(cardDetails.getString("cardholderName"),
+                                                        (PWCreditCardType)cardDetails.get("cardType"),
+                                                        cardDetails.getString("cardNumber"),
+                                                        cardDetails.getString("expiryYear"),
+                                                        cardDetails.getString("expiryMonth"),
+                                                        cardDetails.getString("cvv"));
 
         } catch (PWProviderNotInitializedException e) {
             //setStatusText("Error: Provider not initialized!");
@@ -104,6 +74,8 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
             //setStatusText("Error: Invalid Parameters!");
             e.printStackTrace();
             return;
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
 
         currentTokenization = true;
@@ -118,14 +90,18 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
         _binder.addTokenObtainedListener(this);
         _binder.addTransactionListener(this);
 
+        if (!creationAndRegistration) {
+            this.callbackContext.error("Creation and registration of Peach Payments connection failed");
+        }
+        if (transactionSuccess) {
+            this.callbackContext.success(token);
+        } else {
+            this.callbackContext.error("Failed to obtain peach Payments token.");
+        }
     }
 
-    /* 
-     *  End peach payments.
-     */
-
     @Override
-    public boolean execute(String action, CordovaArgs args, CallbackContext callbackContext) throws JSONException {
+    public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         this.callbackContext = callbackContext;
         this.activity = this.cordova.getActivity();
         boolean retValue = true;
@@ -153,7 +129,7 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
         this.callbackContext.success();
     }
 
-    private void scan(CordovaArgs args) throws JSONException {
+    private void scan(JSONArray args) throws JSONException {
         Intent scanIntent = new Intent(this.activity, CardIOActivity.class);
         JSONObject configurations = args.getJSONObject(0);
         // customize these values to suit your needs.
@@ -174,9 +150,34 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
         scanIntent.putExtra(CardIOActivity.EXTRA_HIDE_CARDIO_LOGO, this.getConfiguration(configurations, "hideCardIOLogo", false)); // default: false
         scanIntent.putExtra(CardIOActivity.EXTRA_SUPPRESS_SCAN, this.getConfiguration(configurations, "suppressScan", false)); // default: false
         this.cordova.startActivityForResult(this, scanIntent, REQUEST_CARD_SCAN);
+
+
+        // Peach Payments Service connection setup.
+        final String APPLICATIONIDENTIFIER = configurations.getString("appId");
+        final String PROFILETOKEN = configurations.getString("appToken");
+        
+        ServiceConnection _serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            _binder = (PWProviderBinder) service;
+            // we have a connection to the service
+            try {
+                _binder.initializeProvider(PWConnect.PWProviderMode.TEST,
+                        APPLICATIONIDENTIFIER, PROFILETOKEN);
+            } catch (PWException ee) {
+                // error initializing the provider
+                ee.printStackTrace();
+            }
+        }
+     
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            _binder = null;
+        }
+    };
     }
 
-    private void canScan(CordovaArgs args) throws JSONException {
+    private void canScan(JSONArray args) throws JSONException {
         if (CardIOActivity.canReadCardWithCamera()) {
             // This is where we return if scanning is enabled.
             this.callbackContext.success("Card Scanning is enabled");
@@ -193,7 +194,6 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
                 if (intent.hasExtra(CardIOActivity.EXTRA_SCAN_RESULT)) {
                     scanResult = intent
                             .getParcelableExtra(CardIOActivity.EXTRA_SCAN_RESULT);
-                    cardDetails = this.toJSONObject(scanResult);
                     this.callbackContext.success(this.toJSONObject(scanResult));
                 } else {
                     this.callbackContext
@@ -240,6 +240,7 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
     @Override
     public void creationAndRegistrationSucceeded(PWTransaction transaction) {
         // check if it is our tokenization transaction
+        creationAndRegistration = true;
         if(currentTokenization) {
             // execute it
             try {
@@ -258,16 +259,16 @@ public class CardIOCordovaPlugin extends CordovaPlugin implements PWTokenObtaine
 
     @Override
     public void transactionSucceeded(PWTransaction pwTransaction) {
-        // Notify on transaction success.
+        transactionSuccess = true;
     }
 
     @Override
     public void transactionFailed(PWTransaction pwTransaction, PWError pwError) {
-
+        transactionSuccess = false;
     }
 
     @Override
     public void creationAndRegistrationFailed(PWTransaction pwTransaction, PWError pwError) {
-
+        creationAndRegistration = false;
     }
 }

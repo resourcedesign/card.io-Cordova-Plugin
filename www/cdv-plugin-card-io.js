@@ -22,17 +22,31 @@ function CardIO() {
  *   "disable_manual_entry_buttons": false, "languageOrLocale": "en"}
  * Omit any key from options to get the default value. For more detail on
  * each of the options, look at CardIOPaymentViewController.h.
+ * Peach Payments service connection requires "appId" and "appToken".
  *
  * @parameter onSuccess: a callback function that accepts a response object; response keys
  * include card_type, redacted_card_number, expiry_month, card_number, expiry_year,
  * and, if requested, cvv, and zip.
  *
  * @parameter onFailure: a zero argument callback function that will be called if the user
- * cancels card scanning.
+ * cancels card scanning or Peach Payments service setup fails.
  */
 CardIO.prototype.scan = function(options, onSuccess, onFailure) {
   cordova.exec(onSuccess, onFailure, "CardIO", "scan", [options]);
 };
+
+/**
+ * Obtain a card token from Peach payments.
+ *
+ *
+ * @parameter options: an object; may be {}. 
+ * Gives credit card details from scan to be used to obtain a token.
+ *
+ * @parameter onSuccess: a callback function that accepts string token.
+ *
+ * @parameter onFailure: a zero argument callback function that will be called if the 
+ * Peach payments connection creation and registration or transaction fail.
+ */
 CardIO.prototype.chargeToken = function(options, onSuccess, onFailure) {
   cordova.exec(onSuccess, onFailure, "CardIO", "chargeToken", [options]);
 };
